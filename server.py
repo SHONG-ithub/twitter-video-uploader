@@ -89,25 +89,27 @@ def verify_request(req):
     ts = req.headers.get("X-Timestamp", "")
     sig = req.headers.get("X-Signature", "")
 
-    # 👇 デバッグ出力を追加（確認用）
-    print(f"[VERIFY] ts={ts}, sig={sig}")
-    print(f"[VERIFY] form.text={req.form.get('text')}")
-    print(f"[VERIFY] form.fileId={req.form.get('fileId')}")
-    if not ts or not sig:
-        return False
-    try:
-        if abs(time.time() - float(ts)) > 300:
-            return False
-    except:
-        return False
+    # 👇 Renderのログに確実に出す
+    app.logger.info(f"[VERIFY] ts={ts}, sig={sig}")
+    app.logger.info(f"[VERIFY] form.text={req.form.get('text')}")
+    app.logger.info(f"[VERIFY] form.fileId={req.form.get('fileId')}")
+
     text = req.form.get("text", "")
     fileId = req.form.get("fileId", "")
     base = f"{ts}::{text}::{fileId}"
     mac = hmac.new(WEBHOOK_SECRET.encode(), base.encode(), hashlib.sha256).hexdigest()
-    print(f"[VERIFY] base={base}")
-    print(f"[VERIFY] expected={mac}")
-    print(f"[VERIFY] got={sig}")
-    return hmac.compare_digest(mac, sig)
+
+    app.logger.info(f"[VERIFY] base={base}")
+    app.logger.info(f"[VERIFY] expected={mac}")
+    app.logger.info(f"[VERIFY] got={sig}")
+
+    if abs(time.time() - float(ts or 0)) > 300:
+        app.logger.info("[VERIFY] timestamp too old")
+        return False
+
+    ok = hmac.compare_digest(mac, sig)
+    app.logger.info(f"[VERIFY] result={ok}")
+    return ok
 
 @app.route("/upload_twitter", methods=["POST"])
 def upload_twitter():
