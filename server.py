@@ -89,12 +89,7 @@ def post_tweet(text, media_id):
     return r.json()["data"]["id"]
 
 @app.route("/health", methods=["GET"])
-# def health(): return jsonify({"ok": True})
-def health():
-    return jsonify({
-        "ok": True,
-        "has_keys": all([CK, CS, AT, AS])
-    })
+def health(): return jsonify({"ok": True})
 
 # ============================================
 # 署名検証（GAS→Render間の安全通信）
