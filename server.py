@@ -88,6 +88,11 @@ def verify_request(req):
         return True
     ts = req.headers.get("X-Timestamp", "")
     sig = req.headers.get("X-Signature", "")
+
+    # 👇 デバッグ出力を追加（確認用）
+    print(f"[VERIFY] ts={ts}, sig={sig}")
+    print(f"[VERIFY] form.text={req.form.get('text')}")
+    print(f"[VERIFY] form.fileId={req.form.get('fileId')}")
     if not ts or not sig:
         return False
     try:
