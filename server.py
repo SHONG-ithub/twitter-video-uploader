@@ -80,15 +80,40 @@ def post_tweet(text, media_id):
 @app.route("/health", methods=["GET"])
 def health(): return jsonify({"ok": True})
 
+# ============================================
+# 署名検証（GAS→Render間の安全通信）
+# ============================================
+def verify_request(req):
+    if not WEBHOOK_SECRET:
+        return True
+    ts = req.headers.get("X-Timestamp", "")
+    sig = req.headers.get("X-Signature", "")
+    if not ts or not sig:
+        return False
+    try:
+        if abs(time.time() - float(ts)) > 300:
+            return False
+    except:
+        return False
+    text = req.form.get("text", "")
+    fileId = req.form.get("fileId", "")
+    base = f"{ts}::{text}::{fileId}"
+    mac = hmac.new(WEBHOOK_SECRET.encode(), base.encode(), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(mac, sig)
+
 @app.route("/upload_twitter", methods=["POST"])
 def upload_twitter():
-    # 署名はまずはオフ（後で有効化）
+    if not verify_request(request):
+        return jsonify({"error": "signature verification failed"}), 403
+
     text = request.form.get("text", "")
-    if "file" not in request.files: return jsonify({"error":"file missing"}), 400
-    fp = "/tmp/video.mp4"; request.files["file"].save(fp)
+    if "file" not in request.files:
+        return jsonify({"error": "file missing"}), 400
+    fp = "/tmp/video.mp4"
+    request.files["file"].save(fp)
     media_id = upload_video(fp)
     tweet_id = post_tweet(text, media_id)
-    return jsonify({"status":"ok", "tweet_id": tweet_id})
+    return jsonify({"status": "ok", "tweet_id": tweet_id})
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
