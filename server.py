@@ -3,6 +3,17 @@ from urllib.parse import quote
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+import logging
+import sys
+
+# =========================================
+# 強制的に stdout へログを出力（Render対応）
+# =========================================
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+app.logger.addHandler(handler)
+app.logger.setLevel(logging.INFO)
+app.logger.propagate = False
 
 CK = os.getenv("TW_CONSUMER_KEY")
 CS = os.getenv("TW_CONSUMER_SECRET")
@@ -84,6 +95,7 @@ def health(): return jsonify({"ok": True})
 # 署名検証（GAS→Render間の安全通信）
 # ============================================
 def verify_request(req):
+    app.logger.info("[VERIFY] verify_request called")
     if not WEBHOOK_SECRET:
         return True
     ts = req.headers.get("X-Timestamp", "")
