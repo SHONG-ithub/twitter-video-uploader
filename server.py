@@ -104,6 +104,9 @@ def verify_request(req):
     fileId = req.form.get("fileId", "")
     base = f"{ts}::{text}::{fileId}"
     mac = hmac.new(WEBHOOK_SECRET.encode(), base.encode(), hashlib.sha256).hexdigest()
+    print(f"[VERIFY] base={base}")
+    print(f"[VERIFY] expected={mac}")
+    print(f"[VERIFY] got={sig}")
     return hmac.compare_digest(mac, sig)
 
 @app.route("/upload_twitter", methods=["POST"])
