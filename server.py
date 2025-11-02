@@ -27,7 +27,7 @@ TWEETS_V2_URL = "https://api.twitter.com/2/tweets"
 def percent_encode(s): 
     return quote(str(s), safe='')
 
-def oauth_header(method, url, params):
+def oauth_header(method, url, params=None):
     oauth = {
         'oauth_consumer_key': CK,
         'oauth_nonce': base64.b64encode(os.urandom(16)).decode(),
@@ -36,16 +36,22 @@ def oauth_header(method, url, params):
         'oauth_token': AT,
         'oauth_version': '1.0'
     }
-    all_params = {**oauth, **(params or {})}
-    base = '&'.join([
-        method.upper(),
-        percent_encode(url),
-        percent_encode('&'.join(f"{percent_encode(k)}={percent_encode(all_params[k])}" 
-                                for k in sorted(all_params)))
-    ])
+
+    # パラメータを統合
+    param_data = {**oauth}
+    if params:
+        # None値は署名対象に含めない
+        for k,v in params.items():
+            if v is not None:
+                param_data[k] = str(v)
+
+    # ベース文字列生成
+    param_str = '&'.join(f"{percent_encode(k)}={percent_encode(param_data[k])}" for k in sorted(param_data))
+    base = '&'.join([method.upper(), percent_encode(url), percent_encode(param_str)])
     key = f"{percent_encode(CS)}&{percent_encode(AS)}"
     sig = base64.b64encode(hmac.new(key.encode(), base.encode(), hashlib.sha1).digest()).decode()
     oauth['oauth_signature'] = sig
+
     return 'OAuth ' + ', '.join(f'{k}="{percent_encode(v)}"' for k,v in oauth.items())
 
 def upload_video(filepath):
