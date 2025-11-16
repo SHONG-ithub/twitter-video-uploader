@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import os
 from tqdm import tqdm
+import shutil  # 追加
 
 # ======================
 # 設定パラメータ
@@ -185,13 +186,18 @@ def process_and_trim_video(video_url: str, work_dir: str = "/tmp") -> dict:
     input_path = os.path.join(work_dir, base)
     output_path = os.path.join(work_dir, base.replace(".mp4", "_trim.mp4"))
 
-    # 動画をダウンロード（今の __main__ と同じやり方）
+    # まず ffmpeg がそもそも存在するかチェック
+    if shutil.which("ffmpeg") is None:
+        raise RuntimeError("ffmpeg コマンドが見つかりません（サーバ環境にインストールされていません）")
+
     print(f"▶ FANZA動画DL開始: {video_url}")
     cmd_dl = ["ffmpeg", "-y", "-i", video_url, "-c", "copy", input_path]
-    subprocess.run(cmd_dl, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.run(cmd_dl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    if not os.path.exists(input_path):
-        raise RuntimeError("動画のダウンロードに失敗しました")
+    if proc.returncode != 0 or not os.path.exists(input_path):
+        # stderr の先頭だけ返してあげる（長すぎるとつらいので）
+        err_snip = (proc.stderr or "").replace("\n", " ")[:400]
+        raise RuntimeError(f"動画のダウンロードに失敗しました: {err_snip}")
 
     mode = "非エロモード" if SAFE_MODE else "エロモード"
     print(f"▶ 解析開始: {input_path} ({mode})")
@@ -263,3 +269,4 @@ if __name__ == "__main__":
         print("❌ トリミング失敗")
         with open("status.json", "w", encoding="utf-8") as f:
             f.write('{"status":"fail"}')
+
