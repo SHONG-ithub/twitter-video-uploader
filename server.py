@@ -1,8 +1,8 @@
 import os, time, hmac, hashlib, base64, requests
-from analyze_trim import process_and_trim_video
-
 from urllib.parse import quote
 from flask import Flask, request, jsonify
+
+from analyze_trim import process_and_trim_video
 
 app = Flask(__name__)
 import logging
@@ -98,6 +98,28 @@ def post_tweet(text, media_id):
 
 @app.route("/health", methods=["GET"])
 def health(): return jsonify({"ok": True})
+
+@app.route("/trim_fanza", methods=["POST"])
+def trim_fanza():
+    """
+    Body: { "video_url": "https://...mp4" }
+    戻り: analyze_trim.process_and_trim_video() の結果をそのまま返す
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        video_url = data.get("video_url")
+        if not video_url:
+            return jsonify({"status": "error", "message": "video_url is required"}), 400
+
+        app.logger.info(f"[trim_fanza] start video_url={video_url}")
+        result = process_and_trim_video(video_url)
+        app.logger.info(f"[trim_fanza] result={result.get('status')} start={result.get('start')} end={result.get('end')}")
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        app.logger.exception("[trim_fanza] error")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # ============================================
 # 署名検証（GAS→Render間の安全通信）
