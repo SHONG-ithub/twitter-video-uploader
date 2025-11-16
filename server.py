@@ -1,4 +1,6 @@
 import os, time, hmac, hashlib, base64, requests
+from analyze_trim import process_and_trim_video
+
 from urllib.parse import quote
 from flask import Flask, request, jsonify
 
