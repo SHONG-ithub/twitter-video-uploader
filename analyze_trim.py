@@ -195,8 +195,14 @@ def process_and_trim_video(video_url: str, work_dir: str = "/tmp") -> dict:
     proc = subprocess.run(cmd_dl, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     if proc.returncode != 0 or not os.path.exists(input_path):
-        # stderr の先頭だけ返してあげる（長すぎるとつらいので）
-        err_snip = (proc.stderr or "").replace("\n", " ")[:400]
+        # stderr を行ごとに分割して「最後の数行」だけつなげる
+        stderr_text = proc.stderr or ""
+        lines = [line.strip() for line in stderr_text.splitlines() if line.strip()]
+        tail_lines = lines[-6:] if len(lines) > 6 else lines
+        err_snip = " | ".join(tail_lines)
+        # 念のため長すぎる場合はカット
+        if len(err_snip) > 800:
+            err_snip = err_snip[-800:]
         raise RuntimeError(f"動画のダウンロードに失敗しました: {err_snip}")
 
     mode = "非エロモード" if SAFE_MODE else "エロモード"
@@ -269,4 +275,5 @@ if __name__ == "__main__":
         print("❌ トリミング失敗")
         with open("status.json", "w", encoding="utf-8") as f:
             f.write('{"status":"fail"}')
+
 
