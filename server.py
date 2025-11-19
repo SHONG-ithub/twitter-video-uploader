@@ -121,6 +121,57 @@ def trim_fanza():
         app.logger.exception("[trim_fanza] error")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/test_download", methods=["POST"])
+def test_download():
+    """
+    Body: { "video_url": "https://...mp4" }
+    - requests で最大 1MB だけ読み込んでみて、
+      HTTPステータス・読み取れたバイト数・経過時間を返す
+    """
+    import time
+    import requests
+
+    data = request.get_json(force=True) or {}
+    url = data.get("video_url")
+    if not url:
+        return jsonify({"status": "error", "message": "video_url is required"}), 400
+
+    start = time.time()
+    try:
+        resp = requests.get(url, stream=True, timeout=15)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "phase": "request",
+            "message": str(e),
+        }), 500
+
+    size = 0
+    try:
+        for chunk in resp.iter_content(1024 * 64):
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > 1024 * 1024:  # 最大1MBで打ち切り
+                break
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "phase": "read",
+            "code": resp.status_code,
+            "message": str(e),
+            "size": size,
+        }), 500
+
+    elapsed = time.time() - start
+    return jsonify({
+        "status": "ok",
+        "code": resp.status_code,
+        "size": size,
+        "elapsed": elapsed,
+    }), 200
+
+
 # ============================================
 # 署名検証（GAS→Render間の安全通信）
 # ============================================
