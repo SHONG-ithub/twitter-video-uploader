@@ -3,6 +3,7 @@ from urllib.parse import quote
 from flask import Flask, request, jsonify
 
 from analyze_trim import process_and_trim_video
+from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
 import logging
@@ -120,6 +121,46 @@ def trim_fanza():
     except Exception as e:
         app.logger.exception("[trim_fanza] error")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route("/trim_fanza_binary", methods=["POST"])
+def trim_fanza_binary():
+    """
+    Body: { "video_url": "https://...mp4" }
+    - process_and_trim_video() でトリミング
+    - 出来上がった mp4 ファイルをレスポンスとして返す
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        video_url = data.get("video_url")
+        if not video_url:
+            return jsonify({"status": "error", "message": "video_url is required"}), 400
+
+        app.logger.info(f"[trim_fanza_binary] start video_url={video_url}")
+        result = process_and_trim_video(video_url)
+
+        if result.get("status") != "success":
+            return jsonify(result), 500
+
+        output_path = result.get("output_path")
+        if not output_path or not os.path.exists(output_path):
+            return jsonify({
+                "status": "error",
+                "message": "output file not found"
+            }), 500
+
+        # ここで動画本体を返す
+        return send_file(
+            output_path,
+            mimetype="video/mp4",
+            as_attachment=False,
+        )
+
+    except Exception as e:
+        app.logger.exception("[trim_fanza_binary] error")
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+        }), 500
 
 # ============================================
 # 署名検証（GAS→Render間の安全通信）
